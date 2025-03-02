@@ -1,0 +1,23 @@
+{
+    "snippet1.py": {
+        "tags": [
+            "python",
+            "example"
+        ],
+        "code_type": "python"
+    },
+    "snippet2.sh": {
+        "tags": [
+            "bash",
+            "script"
+        ],
+        "code_type": "bash"
+    },
+    "snippet3.java": {
+        "tags": [
+            "java",
+            "example"
+        ],
+        "code_type": "java"
+    }
+}

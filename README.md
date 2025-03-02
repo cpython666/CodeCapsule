@@ -1,4 +1,4 @@
-<h1 align="center">SnippetVault</h1>
+<h1 align="center">CodeCapsule</h1>
 <h1 align="center">代码胶囊</h1>
 <p align="center">
 <a href="https://space.bilibili.com/1909782963">

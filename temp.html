@@ -1,0 +1,277 @@
+
+            <html>
+            <head>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5; }
+                    pre, code { background-color: #e0e0e0; padding: 5px; border-radius: 3px; }
+                </style>
+            </head>
+            <body><p>我理解你的需求是将 Markdown 转图片的功能从之前的 <code>SnippetManager</code> 项目中提取出来，单独制作一个独立的 PySide6 应用程序。这个应用将专注于 Markdown 文本输入、转换和图片预览功能。以下是实现这个独立应用的完整代码，包括界面设计和功能实现。</p>
+<hr />
+<h3>应用功能目标</h3>
+<ol>
+<li><strong>界面</strong>：</li>
+<li>一个 <code>QTextEdit</code> 用于输入 Markdown 文本。</li>
+<li>一个按钮用于触发 Markdown 转图片。</li>
+<li>一个区域（<code>QLabel</code> + <code>QScrollArea</code>）用于显示生成的图片。</li>
+<li><strong>逻辑</strong>：</li>
+<li>使用 <code>markdown</code> 和 <code>imgkit</code> 将 Markdown 转换为图片。</li>
+<li>支持代码块渲染（<code>fenced_code</code> 扩展）。</li>
+<li>图片预览支持缩放和滚动。</li>
+<li><strong>错误处理</strong>：</li>
+<li>处理转换失败的情况，显示错误信息。</li>
+</ol>
+<hr />
+<h3>实现代码</h3>
+<p>以下是独立的 Markdown 转图片应用代码：</p>
+<pre><code class="language-python">import sys
+import os
+import markdown
+import imgkit
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QPushButton, QTextEdit, QLabel, QScrollArea
+)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QPixmap
+
+
+class MarkdownToImageApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle(&quot;Markdown 转图片工具&quot;)
+        self.setGeometry(100, 100, 800, 600)  # 设置窗口大小
+
+        # 主部件
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+
+        # Markdown 输入区域
+        self.markdown_edit = QTextEdit()
+        self.markdown_edit.setPlaceholderText(&quot;在这里输入 Markdown 内容（支持代码块）...&quot;)
+        self.markdown_edit.setAcceptRichText(False)  # 确保纯文本输入
+        main_layout.addWidget(self.markdown_edit)
+
+        # 按钮区域
+        button_layout = QHBoxLayout()
+        self.convert_button = QPushButton(&quot;转为图片&quot;)
+        self.convert_button.clicked.connect(self.convert_to_image)
+        button_layout.addStretch()  # 居中按钮
+        button_layout.addWidget(self.convert_button)
+        button_layout.addStretch()
+        main_layout.addLayout(button_layout)
+
+        # 图片预览区域
+        self.image_label = QLabel()
+        self.image_label.setAlignment(Qt.AlignCenter)
+        self.image_label.setText(&quot;图片将在这里显示&quot;)
+        self.image_scroll_area = QScrollArea()
+        self.image_scroll_area.setWidget(self.image_label)
+        self.image_scroll_area.setWidgetResizable(True)
+        main_layout.addWidget(self.image_scroll_area)
+
+        # 设置布局比例
+        main_layout.setStretch(0, 1)  # Markdown 输入区域
+        main_layout.setStretch(1, 0)  # 按钮区域
+        main_layout.setStretch(2, 1)  # 图片预览区域
+
+    def convert_to_image(self):
+        &quot;&quot;&quot;将 Markdown 内容转换为图片并显示&quot;&quot;&quot;
+        markdown_text = self.markdown_edit.toPlainText()
+        if not markdown_text:
+            self.image_label.setText(&quot;请输入 Markdown 内容&quot;)
+            return
+
+        try:
+            # 将 Markdown 转换为 HTML
+            html = markdown.markdown(markdown_text, extensions=['fenced_code'])
+
+            # 添加简单的 CSS 样式以美化输出
+            html_with_style = f&quot;&quot;&quot;
+            &lt;html&gt;
+            &lt;head&gt;
+                &lt;style&gt;
+                    body {{ font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5; }}
+                    pre, code {{ background-color: #e0e0e0; padding: 5px; border-radius: 3px; }}
+                &lt;/style&gt;
+            &lt;/head&gt;
+            &lt;body&gt;{html}&lt;/body&gt;
+            &lt;/html&gt;
+            &quot;&quot;&quot;
+
+            # 将 HTML 保存为临时文件
+            temp_html_path = &quot;temp.html&quot;
+            with open(temp_html_path, &quot;w&quot;, encoding=&quot;utf-8&quot;) as f:
+                f.write(html_with_style)
+
+            # 使用 imgkit 将 HTML 转换为图片
+            output_image_path = &quot;output.png&quot;
+            imgkit.from_file(temp_html_path, output_image_path)
+
+            # 删除临时 HTML 文件
+            os.remove(temp_html_path)
+
+            # 在界面中显示图片
+            pixmap = QPixmap(output_image_path)
+            self.image_label.setPixmap(pixmap.scaled(600, 400, Qt.KeepAspectRatio))
+            self.image_label.adjustSize()
+
+        except Exception as e:
+            self.image_label.setText(f&quot;转换失败: {str(e)}&quot;)
+
+
+if __name__ == &quot;__main__&quot;:
+    app = QApplication(sys.argv)
+    window = MarkdownToImageApp()
+    window.show()
+    sys.exit(app.exec())
+</code></pre>
+<hr />
+<h3>代码说明</h3>
+<ol>
+<li><strong>界面设计</strong>：</li>
+<li>使用 <code>QVBoxLayout</code> 垂直排列三个主要部分：<ul>
+<li><code>self.markdown_edit</code>：一个 <code>QTextEdit</code>，用于输入 Markdown 文本。</li>
+<li><code>self.convert_button</code>：一个居中的按钮，用于触发转换。</li>
+<li><code>self.image_scroll_area</code>：包含 <code>self.image_label</code>，用于显示生成的图片。</li>
+</ul>
+</li>
+<li>
+<p>布局比例通过 <code>setStretch</code> 设置，确保输入和预览区域各占一半空间。</p>
+</li>
+<li>
+<p><strong>Markdown 转图片逻辑</strong>：</p>
+</li>
+<li>使用 <code>markdown</code> 库将 Markdown 转换为 HTML，支持 <code>fenced_code</code> 扩展（代码块）。</li>
+<li>添加简单的 CSS 样式以美化输出（灰色背景的代码块、Arial 字体等）。</li>
+<li>使用 <code>imgkit</code> 将 HTML 渲染为 PNG 图片。</li>
+<li>
+<p>使用 <code>QPixmap</code> 加载图片并通过 <code>QLabel</code> 显示。</p>
+</li>
+<li>
+<p><strong>错误处理</strong>：</p>
+</li>
+<li>如果 Markdown 内容为空，提示用户输入内容。</li>
+<li>如果转换失败（例如 <code>wkhtmltoimage</code> 未安装），显示错误信息。</li>
+</ol>
+<hr />
+<h3>运行环境准备</h3>
+<ol>
+<li><strong>安装依赖</strong>：
+   <code>bash
+   pip install markdown imgkit PySide6</code></li>
+<li><strong>安装 <code>wkhtmltoimage</code></strong>（<code>imgkit</code> 依赖）：</li>
+<li><strong>Windows</strong>：从 wkhtmltopdf 官网下载并安装。</li>
+<li><strong>Linux</strong>：
+     <code>bash
+     sudo apt-get install wkhtmltopdf</code></li>
+<li>
+<p><strong>Mac</strong>：
+     <code>bash
+     brew install wkhtmltopdf</code></p>
+</li>
+<li>
+<p><strong>保存代码</strong>：
+   将代码保存为 <code>markdown_to_image.py</code>。</p>
+</li>
+<li>
+<p><strong>运行程序</strong>：
+   <code>bash
+   python markdown_to_image.py</code></p>
+</li>
+</ol>
+<hr />
+<h3>使用示例</h3>
+<ol>
+<li>启动程序后，界面将显示一个文本框、一个“转为图片”按钮和一个图片预览区域。</li>
+<li>在文本框中输入 Markdown 内容，例如：
+   ```
+   # 示例 Markdown</li>
+</ol>
+<p>这是一个简单的 Markdown 示例。</p>
+<p><code>python
+   print("Hello, World!")</code></p>
+<ul>
+<li>列表项 1</li>
+<li>列表项 2
+   ```</li>
+<li>点击“转为图片”按钮，程序将生成图片并显示在下方预览区域。</li>
+<li>如果转换失败，预览区域会显示错误信息。</li>
+</ul>
+<hr />
+<h3>运行效果</h3>
+<ul>
+<li><strong>界面</strong>：</li>
+<li>顶部是一个可编辑的文本框，支持多行输入。</li>
+<li>中间是一个居中的按钮，用于触发转换。</li>
+<li>
+<p>底部是一个可滚动的图片预览区域，支持缩放。</p>
+</li>
+<li>
+<p><strong>功能</strong>：</p>
+</li>
+<li>支持基本的 Markdown 语法，包括标题、代码块、列表等。</li>
+<li>图片渲染带有简单的样式（灰色代码块背景、Arial 字体）。</li>
+</ul>
+<hr />
+<h3>额外优化建议</h3>
+<ol>
+<li><strong>支持代码高亮</strong>：</li>
+<li>安装 <code>pygments</code>：
+     <code>bash
+     pip install pygments</code></li>
+<li>修改 <code>markdown.markdown</code> 调用，启用 <code>codehilite</code> 扩展：
+     <code>python
+     html = markdown.markdown(markdown_text, extensions=['fenced_code', 'codehilite'])</code></li>
+<li>
+<p>在 CSS 中添加高亮样式：
+     <code>css
+     &lt;style&gt;
+         body { font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5; }
+         pre, code { background-color: #e0e0e0; padding: 5px; border-radius: 3px; }
+         .codehilite .hll { background-color: #ffffcc; }
+         .codehilite { background: #f8f8f8; }
+         .codehilite .c { color: #408080; font-style: italic; } /* Comment */
+         .codehilite .k { color: #008000; font-weight: bold; } /* Keyword */
+         .codehilite .s { color: #BA2121; } /* String */
+     &lt;/style&gt;</code></p>
+</li>
+<li>
+<p><strong>保存图片</strong>：</p>
+</li>
+<li>
+<p>添加一个“保存图片”按钮，允许用户将生成的图片保存到指定路径：
+     ```python
+     self.save_image_button = QPushButton("保存图片")
+     self.save_image_button.clicked.connect(self.save_image)
+     button_layout.addWidget(self.save_image_button)</p>
+<p>def save_image(self):
+     if not self.image_label.pixmap():
+         self.image_label.setText("没有图片可保存")
+         return
+     file_path, _ = QFileDialog.getSaveFileName(self, "保存图片", "", "PNG 文件 (<em>.png);;所有文件 (</em>.*)")
+     if file_path:
+         self.image_label.pixmap().save(file_path)
+ ```</p>
+</li>
+<li>
+<p><strong>支持更多 Markdown 扩展</strong>：</p>
+</li>
+<li>
+<p>如果需要支持表格、Mermaid 图表等，可以引入更多 <code>markdown</code> 扩展，例如 <code>tables</code> 或 <code>pymdown-extensions</code>。</p>
+</li>
+<li>
+<p><strong>界面美化</strong>：</p>
+</li>
+<li>为按钮和文本框添加样式：
+     <code>python
+     self.markdown_edit.setStyleSheet("QTextEdit { border: 1px solid #D3D3D3; border-radius: 5px; padding: 5px; }")
+     self.convert_button.setStyleSheet("QPushButton { padding: 5px 15px; }")</code></li>
+</ol>
+<hr />
+<h3>总结</h3>
+<p>这个独立的 <code>MarkdownToImageApp</code> 应用实现了 Markdown 转图片的核心功能，界面简洁，支持代码块渲染，并通过 <code>QScrollArea</code> 提供图片预览。如果你需要添加更多功能（例如代码高亮、保存图片、支持复杂 Markdown 格式），可以参考上述优化建议。</p>
+<p>如果有其他需求或运行中遇到问题，请告诉我，我会继续帮你调整！</p></body>
+            </html>
+            
